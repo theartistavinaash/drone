@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drone Controller</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        .controller {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .toggle-switch {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .toggle-switch input {
+            display: none;
+        }
+
+        .toggle-switch label {
+            width: 50px;
+            height: 25px;
+            background-color: #ccc;
+            border-radius: 15px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .toggle-switch label::after {
+            content: '';
+            width: 23px;
+            height: 23px;
+            background-color: white;
+            border-radius: 50%;
+            position: absolute;
+            top: 1px;
+            left: 1px;
+            transition: 0.3s;
+        }
+
+        .toggle-switch input:checked + label::after {
+            left: 26px;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 20px;
+        }
+
+        .control-stick {
+            position: relative;
+            width: 150px;
+            height: 150px;
+            background-color: #e0e0e0;
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .stick {
+            width: 40px;
+            height: 40px;
+            background-color: #4285f4;
+            border-radius: 50%;
+            position: absolute;
+            transition: 0.1s;
+        }
+
+        .axis-label {
+            position: absolute;
+            font-size: 14px;
+        }
+
+        .yaw {
+            top: 10px;
+        }
+
+        .thrust {
+            bottom: 10px;
+        }
+
+        .pitch {
+            right: 10px;
+        }
+
+        .roll {
+            left: 10px;
+        }
+
+        button {
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        button:hover {
+            background-color: #357ae8;
+        }
+    </style>
+</head>
+<body>
+    <div class="controller">
+        <div class="toggle-switch">
+            <input type="checkbox" id="power" />
+            <label for="power"></label>
+        </div>
+        <div class="controls">
+            <div class="control-stick" id="leftStick">
+                <div class="stick" id="leftStickHandle"></div>
+                <div class="axis-label yaw">Yaw</div>
+                <div class="axis-label thrust">Thrust</div>
+            </div>
+            <div class="control-stick" id="rightStick">
+                <div class="stick" id="rightStickHandle"></div>
+                <div class="axis-label pitch">Pitch</div>
+                <div class="axis-label roll">Roll</div>
+            </div>
+        </div>
+        <button id="connectButton">Connect</button>
+        <button id="settingsButton">Settings</button>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const leftStick = document.getElementById('leftStickHandle');
+            const rightStick = document.getElementById('rightStickHandle');
+
+            const controlStick = (stick, event) => {
+                const rect = stick.parentElement.getBoundingClientRect();
+                let x = event.clientX - rect.left - stick.offsetWidth / 2;
+                let y = event.clientY - rect.top - stick.offsetHeight / 2;
+
+                x = Math.max(0, Math.min(x, rect.width - stick.offsetWidth));
+                y = Math.max(0, Math.min(y, rect.height - stick.offsetHeight));
+
+                stick.style.left = `${x}px`;
+                stick.style.top = `${y}px`;
+
+                const percentageX = x / (rect.width - stick.offsetWidth);
+                const percentageY = y / (rect.height - stick.offsetHeight);
+
+                // Send control data to the drone
+                sendControlData(stick.id, percentageX, percentageY);
+            };
+
+            const resetStick = (stick) => {
+                stick.style.left = '50%';
+                stick.style.top = '50%';
+            };
+
+            leftStick.addEventListener('mousedown', (event) => {
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+
+                function onMouseMove(event) {
+                    controlStick(leftStick, event);
+                }
+
+                function onMouseUp() {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                    resetStick(leftStick);
+                }
+            });
+
+            rightStick.addEventListener('mousedown', (event) => {
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+
+                function onMouseMove(event) {
+                    controlStick(rightStick, event);
+                }
+
+                function onMouseUp() {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                    resetStick(rightStick);
+                }
+            });
+
+            leftStick.addEventListener('touchstart', (event) => {
+                document.addEventListener('touchmove', onTouchMove);
+                document.addEventListener('touchend', onTouchEnd);
+
+                function onTouchMove(event) {
+                    controlStick(leftStick, event.touches[0]);
+                }
+
+                function onTouchEnd() {
+                    document.removeEventListener('touchmove', onTouchMove);
+                    document.removeEventListener('touchend', onTouchEnd);
+                    resetStick(leftStick);
+                }
+            });
+
+            rightStick.addEventListener('touchstart', (event) => {
+                document.addEventListener('touchmove', onTouchMove);
+                document.addEventListener('touchend', onTouchEnd);
+
+                function onTouchMove(event) {
+                    controlStick(rightStick, event.touches[0]);
+                }
+
+                function onTouchEnd() {
+                    document.removeEventListener('touchmove', onTouchMove);
+                    document.removeEventListener('touchend', onTouchEnd);
+                    resetStick(rightStick);
+                }
+            });
+
+            const sendControlData = (stickId, percentageX, percentageY) => {
+                console.log(`Stick: ${stickId}, X: ${percentageX}, Y: ${percentageY}`);
+
+                const controlData = {
+                    stick: stickId,
+                    x: percentageX,
+                    y: percentageY
+                };
+
+                // Send the control data to the drone
+                fetch('http://your-drone-ip-address/control', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(controlData)
+                });
+            };
+
+            document.getElementById('connectButton').addEventListener('click', () => {
+                console.log('Connecting to the drone...');
+            });
+
+            document.getElementById('settingsButton').addEventListener('click', () => {
+                console.log('Opening settings...');
+            });
+
+            document.getElementById('power').addEventListener('change', (event) => {
+                console.log('Power toggled: ', event.target.checked);
+            });
+        });
+    </script>
+</body>
+</html>
